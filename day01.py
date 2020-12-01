@@ -9,8 +9,8 @@ data = """1721
 1456"""
 
 
-def integerize(input):
-    return [int(x) for x in input.split("\n")]
+def integerize(source):
+    return [int(x) for x in source.split("\n")]
 
 
 def find_entries(expense_list, count):
