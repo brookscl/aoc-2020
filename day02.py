@@ -1038,10 +1038,7 @@ def valid_positional(password_declaration):
     second = int(firstsecond[1]) - 1
     char = chunks[1][:1]
     password = chunks[2]
-    if password[first] == char:
-        return password[second] != char
-    else:
-        return password[second] == char
+    return (password[first] == char) != (password[second] == char)
 
 
 test_valid = valid_count(password_list, valid_positional)
@@ -1049,4 +1046,5 @@ print(f"Test case valid count is {test_valid}")
 assert test_valid == 1
 
 real_valid = valid_count(real_password_list, valid_positional)
+assert real_valid == 342
 print(f"Part 2 valids: {real_valid}")
