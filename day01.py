@@ -1,5 +1,5 @@
 from itertools import combinations
-import numpy
+from numpy import prod
 
 data = """1721
 979
@@ -15,10 +15,8 @@ def integerize(source):
 
 def find_entries(expense_list, count):
     all_combinations = combinations(expense_list, count)
-    for comb in all_combinations:
-        if sum(comb) == 2020:
-            return numpy.prod(comb)
-    return None
+    match = next(c for c in all_combinations if sum(c) == 2020)
+    return prod(match)
 
 
 expenses = integerize(data)
