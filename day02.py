@@ -1030,6 +1030,7 @@ real_valid = valid_count(real_password_list, valid_minmax)
 print(f"Part 1 valids: {real_valid}")
 assert real_valid == 458
 
+
 # Part 2
 def valid_positional(password_declaration):
     chunks = password_declaration.split(" ")
