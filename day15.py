@@ -21,28 +21,19 @@ def play_game(numbers, rounds):
 def play_game_smart(numbers, rounds):
     history = {}
 
-    for i, n in enumerate(numbers):
-        history[n] = (-1, i)
+    for i, n in enumerate(numbers[:-1]):
+        history[n] = i
 
-    prior = numbers[-1]
-    for i in range(len(numbers), rounds):
-        # if (i % 100000) == 0:
-        #     print(f"Iteration {i}")
-
-        new_value = 0
-        h = history[prior]
-        if h[0] == -1:  # First time
+    current = numbers[-1]
+    for i in range(len(numbers) - 1, rounds - 1):
+        if current in history:
+            new_value = i - history[current]
+        else:
             new_value = 0
-        else:
-            new_value = i - h[0] - 1
+        history[current] = i
+        current = new_value
 
-        if new_value in history:
-            history[new_value] = (history[new_value][1], i)
-        else:
-            history[new_value] = (-1, i)
-        prior = new_value
-
-    return prior
+    return current
 
 
 test1 = "0,3,6"
