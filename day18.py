@@ -8,11 +8,9 @@ from pyparsing import (
 
 import operator
 
-ppc = pyparsing_common
-
 ParserElement.enablePackrat()
 
-integer = ppc.integer
+integer = pyparsing_common.integer  # pyparsing knows how ints are built
 operand = integer
 
 math_op = oneOf("* +")
@@ -80,3 +78,4 @@ new_rules = infixNotation(
 assert evaluate('2 * 3 + (4 * 5)', new_rules) == 46
 total = sum(evaluate(f, new_rules) for f in formulas)
 print(f"Part 2 answer: {total}")
+assert total == 290726428573651
