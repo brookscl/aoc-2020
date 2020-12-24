@@ -36,11 +36,11 @@ def part1():
     test_cups = '389125467'
     final_cups = play_long_game(test_cups, 10, 9)
     assert stringify(final_cups) == '92658374'
-    final_cups = play_game(test_cups, 100)
+    final_cups = play_long_game(test_cups, 100, 9)
     assert stringify(final_cups) == '67384529'
 
     cups = '467528193'
-    final_cups = play_game(cups, 100)
+    final_cups = play_long_game(cups, 100, 9)
     print(f"Part 1: {final_cups}")
     assert stringify(final_cups) == '43769582'
 
@@ -94,4 +94,4 @@ def part2():
 
 
 part1()
-part2()
+# part2()
