@@ -1,97 +1,109 @@
-from blist import blist
-
-
-def play_game(cups, rounds):
-    for r in range(rounds):
-        current_cup = cups[0]
-        picked_up = cups[1:4]
-        cups = cups[0] + cups[4:]
-        target = int(current_cup)
-        placed = False
-        while not placed:
-            if target == 1:
-                target = 9
-            else:
-                target -= 1
-            if str(target) in cups:
-                insert_spot = cups.index(str(target))
-                cups = cups[0:insert_spot+1] + picked_up + cups[insert_spot+1:]
-                placed = True
-
-        # rotate the cups to put next target at zero position
-        cups = cups[1:] + cups[0]
-
-    # now rotate to the 1 spot and eliminate 1
-    one_spot = cups.index('1')
-    return cups[one_spot + 1:] + cups[0:one_spot]
-
-
 def stringify(cup_list):
-    s = ''
+    s = ""
     for c in cup_list:
         s += str(c)
     return s
 
-def part1():
-    test_cups = '389125467'
-    final_cups = play_long_game(test_cups, 10, 9)
-    assert stringify(final_cups) == '92658374'
-    final_cups = play_long_game(test_cups, 100, 9)
-    assert stringify(final_cups) == '67384529'
 
-    cups = '467528193'
+def part1():
+    test_cups = "389125467"
+    final_cups = play_long_game(test_cups, 10, 9)
+    assert stringify(final_cups) == "92658374"
+    final_cups = play_long_game(test_cups, 100, 9)
+    assert stringify(final_cups) == "67384529"
+
+    cups = "467528193"
     final_cups = play_long_game(cups, 100, 9)
     print(f"Part 1: {final_cups}")
-    assert stringify(final_cups) == '43769582'
+    assert stringify(final_cups) == "43769582"
 
 
 MAX_CUP = 1000000
 
 
-def play_long_game(starting_cups, rounds=10000000, max=MAX_CUP):
-    cups = blist([i for i in range(1, max + 1)])
-    for i, cup in enumerate(starting_cups):
-        cups[i] = int(cup)
+def mod_decrement(i, max_value):
+    if i == 1:
+        return max_value
+    else:
+        return i - 1
 
+
+def find_target(cups, target):
+    for i, c in enumerate(cups):
+        if c == target:
+            return i
+    assert False
+    return -1
+
+
+class Node:
+    def __init__(self, label: int) -> None:
+        self.label = label
+        self.next = None
+
+    def __repr__(self):
+        return f"Cup number: {self.label}"
+
+
+def play_long_game(starting_cups, rounds=10000000, max_value=MAX_CUP):
+    starting_cups = [int(cup) for cup in starting_cups]
+    cup_index = {i: Node(i) for i in range(1, max_value + 1)}
+
+    for i in range(1, max_value):
+        cup_index[i].next = cup_index[i + 1]
+
+    cup_index[max_value].next = cup_index[starting_cups[0]]
+
+    for i in range(len(starting_cups)):
+        cup_index[starting_cups[i]].next = cup_index[
+            starting_cups[(i + 1) % len(starting_cups)]
+        ]
+
+    if max_value > len(starting_cups):
+        cup_index[starting_cups[-1]].next = cup_index[len(starting_cups) + 1]
+
+    current_cup = cup_index[starting_cups[0]]
     for r in range(rounds):
-        if (r % 100) == 0:
+        if (r % 1000000) == 0:
             print(f"Starting round {r}")
 
-        current_cup = cups[0]
-        picked_up = cups[1:4]
-        target = current_cup
-        placed = False
-        insert_spot = -1
-        while not placed:
-            if target == 1:
-                target = MAX_CUP
-            else:
-                target -= 1
-            if target in cups[4:]:
-                insert_spot = cups.index(target)
-                # cups = blist(cups[0:insert_spot+1] + picked_up + cups[insert_spot+1:])
-                placed = True
+        picked_up = current_cup.next
+        current_cup.next = current_cup.next.next.next.next
 
-        # rotate the cups to put next target at zero position
-        for cup in reversed(picked_up):
-            cups.insert(insert_spot + 1, cup)
-        # cups.insert(insert_spot + 1, list(picked_up))
-        cups.append(cups[0])
-        del cups[0:4]
+        target = mod_decrement(current_cup.label, max_value)
+        while target in [
+            picked_up.label,
+            picked_up.next.label,
+            picked_up.next.next.label,
+        ]:
+            target = mod_decrement(target, max_value)
 
-    # now rotate to the 1 spot and eliminate 1
-    one_spot = cups.index(1)
-    return cups[one_spot + 1:] + cups[0:one_spot]
+        insert_point = cup_index[target]
+        picked_up.next.next.next = insert_point.next
+        insert_point.next = picked_up
+        current_cup = current_cup.next
 
-    # return cups[one_spot + 1:2]
+    # Do this to support parts 1 AND 2
+    return_list = []
+    one_spot = cup_index[1].next
+    for i in range(8):
+        return_list.append(one_spot.label)
+        one_spot = one_spot.next
+    return return_list
 
 
 def part2():
-    test_cups = '389125467'
+    # Let's experiment to look for patterns
+    test_cups = "389125467"
     star_cups = play_long_game(test_cups)
     assert star_cups[0] == 934001 and star_cups[1] == 159792
-    # assert final_cups == '92658374'
+
+    cups = "467528193"
+    final_cups = play_long_game(cups)
+    product = final_cups[0] * final_cups[1]
+    print(f"Part 2: {product}")
+    assert product == 264692662390
 
 
 part1()
-# part2()
+part2()

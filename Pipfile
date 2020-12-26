@@ -10,7 +10,7 @@ flake8 = "*"
 [packages]
 numpy = "==1.18.0"
 pyparsing = "*"
-blist = "*"
+llist = "*"
 
 [requires]
 python_version = "3.8.6"
