@@ -42,7 +42,8 @@ def search_for_matching_edges(tiles):
         for i, border in enumerate(tile):
             forward_matches = find_all_matching_rows(tile_number, border, tiles)
             backward_matches = find_all_matching_rows(tile_number, border[::-1], tiles)
-            match_list[i] = (forward_matches, backward_matches)
+            if forward_matches or backward_matches:
+                match_list[i] = (forward_matches, backward_matches)
         matches[tile_number] = match_list
 
     return matches
@@ -57,12 +58,12 @@ def find_tile_positions(tile_matches):
     outsiders = set()
     insiders = set()
     for num, match_data in tile_matches.items():
-        empty_edges = sum(non_matching_rows(b) for b in list(match_data.values()))
-        if empty_edges == 2:
+        neighbors = len(match_data)
+        if neighbors == 2:
             corners.add(num)
-        elif empty_edges == 1:
+        elif neighbors == 3:
             outsiders.add(num)
-        elif empty_edges == 0:
+        elif neighbors == 4:
             insiders.add(num)
     return corners, outsiders, insiders
 
@@ -115,76 +116,88 @@ def load_tiles_as_matrices(file_name):
     return tile_set
 
 
-def find_adjacent_tile(tile, search_set, tile_matches, reverse=False):
+def find_adjacent_tile(tile, search_set, tile_matches):
     matches = tile_matches[tile]
-    for direction in range(4):
+    matching_edges = find_adjacent(matches, search_set)
+
+    return next(iter(matching_edges)) if matching_edges else None
+
+
+def find_adjacent(matches, search_set):
+    matching_edges = set()
+    for direction, match in matches.items():
         # This is also where we'll find the required rotation and flipping
         # match_list[i] = (forward_matches, backward_matches)
-        if reverse:
-            search_list = list(reversed(matches[direction][1])) + list(reversed(matches[direction][0]))
-        else:
-            search_list = matches[direction][0] + matches[direction][1]
+        search_list = match[0] + match[1]
         for edge in search_list:
             if edge[0] in search_set:
+                matching_edges.add(edge[0])
                 # Will need to rotate based on i
-                return edge[0]
-    return None
+    return matching_edges
 
 
-def build_tile_grid(start_corner, corners, outsiders, insiders, tile_matrices, tile_matches, reverse=False):
+# Should be two consecutive sides matching, and we want the corresponding
+# matrix to be aligned along 1,2 direction (east and south) for first upper-left
+# corner
+def orient_first_corner(corner, tile_matrices, tile_matches):
+    matches = tile_matches[corner]
+    if (0 in matches) and (1 in matches):
+        tile_matrices[corner] = np.rot90(tile_matrices[corner], axes=(1,0))
+    elif (2 in matches) and (3 in matches):
+        tile_matrices[corner] = np.rot90(tile_matrices[corner])
+    elif (0 in matches) and (4 in matches):
+        tile_matrices[corner] = np.rot90(tile_matrices[corner])
+        tile_matrices[corner] = np.rot90(tile_matrices[corner])
+    return
+
+
+def build_outer_tile_grid(corners, outsiders, tile_matrices, tile_matches):
     shape = int(math.sqrt(len(tile_matrices)))
     grid = {}
-    current = start_corner
-    # Build top row (ugh)
+    current = next(iter(corners))
+    corners.remove(current)
+    orient_first_corner(current, tile_matrices, tile_matches)
     x, y = 0, 0
     grid[(x, y)] = (current, tile_matrices[current])
-    for x in range(1, shape - 1):
-        tile = find_adjacent_tile(current, outsiders, tile_matches, reverse)
-        if not tile:
-            return False
-        grid[(x, y)] = (tile, tile_matrices[tile])
-        outsiders.remove(tile)
-        current = tile
-    corner = find_adjacent_tile(current, corners, tile_matches, reverse)
-    grid[(shape - 1, 0)] = (corner, tile_matrices[corner])
-    corners.remove(corner)
-
-    # Build middle rows (ugh ugh)
-    for y in range(1, shape - 1):
-        left_edge = find_adjacent_tile(grid[(0, y-1)][0], outsiders, tile_matches, reverse)
-        if not left_edge:
-            return False
-        grid[(0, y)] = (left_edge, tile_matrices[left_edge])
-        outsiders.remove(left_edge)
-        current = left_edge
-        for x in range(1, shape - 1):
-            tile = find_adjacent_tile(current, insiders, tile_matches, reverse)
+    for j in range(4):
+        for k in range(shape - 1):
+            if j == 0:
+                x += 1
+            elif j == 1:
+                y += 1
+            elif j == 2:
+                x -= 1
+            else:
+                y -= 1
+            set_to_search = outsiders
+            if k == shape - 2:
+                if not corners:
+                    break
+                set_to_search = corners
+            tile = find_adjacent_tile(current, set_to_search, tile_matches)
             if not tile:
+                print(f"Failed to find outside tile in {set_to_search}")
+                return False
+            orient_to_adjacent(tile, current, tile_matrices, tile_matches)
+            grid[(x, y)] = (tile, tile_matrices[tile])
+            set_to_search.remove(tile)
+            current = tile
+
+    return grid
+
+
+def build_inner_tile_grid(grid, insiders, tile_matrices, tile_matches):
+    shape = int(math.sqrt(len(tile_matrices)))
+    for y in range(1, shape - 1):
+        current = grid[(1, y - 1)][0]
+        for x in range(1, shape - 1):
+            tile = find_adjacent_tile(current, insiders, tile_matches)
+            if not tile:
+                print(f"Failed to find inside tile in {insiders}")
                 return False
             grid[(x, y)] = (tile, tile_matrices[tile])
             insiders.remove(tile)
-            current = tile
-        right_edge = find_adjacent_tile(current, outsiders, tile_matches, reverse)
-        if not right_edge:
-            return False
-        grid[(shape - 1, y)] = (right_edge, tile_matrices[right_edge])
-
-    # Finally, build bottom row
-    y = shape - 1
-    lower_left = find_adjacent_tile(grid[(0, y-1)][0], corners, tile_matches, reverse)
-    grid[(0, y)] = (lower_left, tile_matrices[lower_left])
-    corners.remove(lower_left)
-    current = lower_left
-    for x in range(1, shape - 1):
-        tile = find_adjacent_tile(current, outsiders, tile_matches, reverse)
-        if not tile:
-            return False
-        grid[(x, y)] = (tile, tile_matrices[tile])
-        outsiders.remove(tile)
-        current = tile
-    corner = find_adjacent_tile(current, corners, tile_matches, reverse)
-    grid[(shape - 1, y)] = (corner, tile_matrices[corner])
-    corners.remove(corner)
+            current = grid[(x + 1, y - 1)][0]
 
     return grid
 
@@ -196,6 +209,7 @@ def print_grid(grid):
             for tile_x in range(shape):
                 print(''.join(grid[(tile_x, tile_y)][1][y].tolist()), end=' ')
             print('')
+        print('')
 
 
 def part2():
@@ -205,36 +219,20 @@ def part2():
     corner_product = np.prod([int(i) for i in corners])
     print(corners)
     assert corner_product == 20899048083289
-    print('Matching edges for corners:')
-    for c in corners:
-        print(f"{c}: {tile_matches[c]}")
 
     tile_matrices = load_tiles_as_matrices('day20_test.txt')
-    for c in set(corners):
-        grid = build_tile_grid(c, set(corners - {c}), outsiders, insiders, tile_matrices, tile_matches)
-        if grid:
-            break
+    grid = build_outer_tile_grid(corners, outsiders, tile_matrices, tile_matches)
+    grid = build_inner_tile_grid(grid, insiders, tile_matrices, tile_matches)
     print_grid(grid)
 
     tiles = load_tiles('day20.txt')
     tile_matches = search_for_matching_edges(tiles)
-    corners, outsiders, insiders = find_tile_positions(tile_matches)
     tile_matrices = load_tiles('day20.txt')
     corners, outsiders, insiders = find_tile_positions(tile_matches)
-    # try each fucking corner
-    for corner in set(corners):
-        # try forward search
-        print(f"Trying with corner {corner}")
-        grid = build_tile_grid(corner, set(corners - {corner}), outsiders, insiders, tile_matrices, tile_matches)
-        if not grid:
-            print(f"Trying REVERSED with corner {corner}")
-            build_tile_grid(corner, set(corners - {corner}), outsiders, insiders, tile_matrices, tile_matches, True)
-        if grid:
-            break
-    if grid:
-        print_grid(grid)
-    else:
-        print("***Could not build grid***")
+    grid = build_outer_tile_grid(corners, outsiders, tile_matrices, tile_matches)
+    grid = build_inner_tile_grid(grid, insiders, tile_matrices, tile_matches)
+    # print_grid(grid)
+
 
 
 # part1()
